@@ -13,13 +13,48 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def send_message(chat_id, text):
+def send_message(chat_id, text, keyboard=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {
         "chat_id": chat_id,
-        "text": text
+        "text": text,
+        "reply_markup": keyboard
     }
     requests.post(url, json=data)
+
+
+def edit_message(chat_id, message_id, text, keyboard=None):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
+    data = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "text": text,
+        "reply_markup": keyboard
+    }
+    requests.post(url, json=data)
+
+
+def main_menu():
+    return {
+        "inline_keyboard": [
+            [{"text": "📅 Календарь", "callback_data": "calendar"}],
+            [{"text": "📋 Задачи", "callback_data": "tasks"}],
+            [{"text": "📊 Загрузка", "callback_data": "load"}],
+            [{"text": "👥 Клиенты", "callback_data": "clients"}],
+            [{"text": "💰 Финансы", "callback_data": "finance"}],
+            [{"text": "⚙️ Настройки", "callback_data": "settings"}],
+        ]
+    }
+
+
+def tasks_menu():
+    return {
+        "inline_keyboard": [
+            [{"text": "➕ Добавить задачу", "callback_data": "add_task"}],
+            [{"text": "📄 Мои задачи", "callback_data": "list_tasks"}],
+            [{"text": "⬅ Назад", "callback_data": "back_main"}],
+        ]
+    }
 
 
 def ensure_user(telegram_id):
@@ -63,18 +98,43 @@ def webhook():
 
     data = request.json
 
+    # Сообщение
     if "message" in data:
 
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
         if text == "/start":
-
             ensure_user(chat_id)
 
             send_message(
                 chat_id,
-                "🏢 Панель управления\n\n📅 Календарь\n📋 Задачи\n📊 Загрузка"
+                "🏢 Панель управления",
+                main_menu()
+            )
+
+    # Нажатие кнопки
+    if "callback_query" in data:
+
+        query = data["callback_query"]
+        chat_id = query["message"]["chat"]["id"]
+        message_id = query["message"]["message_id"]
+        action = query["data"]
+
+        if action == "tasks":
+            edit_message(
+                chat_id,
+                message_id,
+                "📋 Задачи",
+                tasks_menu()
+            )
+
+        elif action == "back_main":
+            edit_message(
+                chat_id,
+                message_id,
+                "🏢 Панель управления",
+                main_menu()
             )
 
     return "ok"
