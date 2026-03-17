@@ -5,7 +5,7 @@ from supabase import create_client
 import uuid
 
 app = Flask(__name__)
-
+user_states = {}
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -101,6 +101,29 @@ def webhook():
     # Сообщение
     if "message" in data:
 
+if chat_id in user_states and user_states[chat_id] == "waiting_task":
+
+    task_text = text
+
+    user = supabase.table("users") \
+        .select("*") \
+        .eq("telegram_id", chat_id) \
+        .execute()
+
+    user_id = user.data[0]["id"]
+
+    supabase.table("tasks").insert({
+        "id": str(uuid.uuid4()),
+        "title": task_text,
+        "user_id": user_id
+    }).execute()
+
+    user_states.pop(chat_id)
+
+    send_message(chat_id, f"✅ Задача создана:\n{task_text}")
+
+    return "ok"
+    
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
@@ -127,7 +150,15 @@ def webhook():
                 message_id,
                 "📋 Задачи",
                 tasks_menu()
-            )
+            ) 
+elif action == "add_task":
+    user_states[chat_id] = "waiting_task"
+
+    edit_message(
+        chat_id,
+        message_id,
+        "✏️ Введите текст задачи:"
+    )
 
         elif action == "back_main":
             edit_message(
