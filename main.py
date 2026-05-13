@@ -101,33 +101,39 @@ def webhook():
     # Сообщение
     if "message" in data:
 
-if chat_id in user_states and user_states[chat_id] == "waiting_task":
-
-    task_text = text
-
-    user = supabase.table("users") \
-        .select("*") \
-        .eq("telegram_id", chat_id) \
-        .execute()
-
-    user_id = user.data[0]["id"]
-
-    supabase.table("tasks").insert({
-        "id": str(uuid.uuid4()),
-        "title": task_text,
-        "user_id": user_id
-    }).execute()
-
-    user_states.pop(chat_id)
-
-    send_message(chat_id, f"✅ Задача создана:\n{task_text}")
-
-    return "ok"
-    
         chat_id = data["message"]["chat"]["id"]
         text = data["message"].get("text", "")
 
+        # Создание задачи
+        if chat_id in user_states and user_states[chat_id] == "waiting_task":
+
+            task_text = text
+
+            user = supabase.table("users") \
+                .select("*") \
+                .eq("telegram_id", chat_id) \
+                .execute()
+
+            user_id = user.data[0]["id"]
+
+            supabase.table("tasks").insert({
+                "id": str(uuid.uuid4()),
+                "title": task_text,
+                "user_id": user_id
+            }).execute()
+
+            user_states.pop(chat_id)
+
+            send_message(
+                chat_id,
+                f"✅ Задача создана:\n{task_text}"
+            )
+
+            return "ok"
+
+        # Команда start
         if text == "/start":
+
             ensure_user(chat_id)
 
             send_message(
@@ -140,27 +146,36 @@ if chat_id in user_states and user_states[chat_id] == "waiting_task":
     if "callback_query" in data:
 
         query = data["callback_query"]
+
         chat_id = query["message"]["chat"]["id"]
         message_id = query["message"]["message_id"]
+
         action = query["data"]
 
+        # Меню задач
         if action == "tasks":
+
             edit_message(
                 chat_id,
                 message_id,
                 "📋 Задачи",
                 tasks_menu()
-            ) 
-elif action == "add_task":
-    user_states[chat_id] = "waiting_task"
+            )
 
-    edit_message(
-        chat_id,
-        message_id,
-        "✏️ Введите текст задачи:"
-    )
+        # Добавление задачи
+        elif action == "add_task":
 
+            user_states[chat_id] = "waiting_task"
+
+            edit_message(
+                chat_id,
+                message_id,
+                "✏️ Введите текст задачи:"
+            )
+
+        # Назад
         elif action == "back_main":
+
             edit_message(
                 chat_id,
                 message_id,
